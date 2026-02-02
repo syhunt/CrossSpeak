@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CrossSpeak v1 - Local Encoder/Decoder</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --text:#e8eef7;
+      --muted:#9bb0c9;
+      --accent:#6aa9ff;
+      --accent2:#9a7bff;
+      --border:rgba(255,255,255,.08);
+      --shadow: 0 12px 35px rgba(0,0,0,.45);
+      --radius:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% -10%, rgba(106,169,255,.25), transparent 55%),
+        radial-gradient(900px 600px at 100% 0%, rgba(154,123,255,.18), transparent 60%),
+        radial-gradient(900px 600px at 50% 120%, rgba(106,255,221,.10), transparent 60%),
+        var(--bg);
+      min-height:100vh;
+      padding:28px;
+    }
+    .wrap{ max-width:1100px; margin:0 auto; }
+    header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:14px;
+      flex-wrap:wrap;
+    }
+    .title{ display:flex; flex-direction:column; gap:6px; }
+    h1{ margin:0; font-size:28px; letter-spacing:.2px; line-height:1.1; }
+    .sub{ color:var(--muted); font-size:14px; }
+    .badge{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:10px 14px;
+      background:linear-gradient(135deg, rgba(106,169,255,.16), rgba(154,123,255,.12));
+      border:1px solid var(--border);
+      border-radius:999px;
+      box-shadow: var(--shadow);
+      font-size:13px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #bfe0ff, var(--accent));
+      box-shadow:0 0 18px rgba(106,169,255,.55);
+    }
+
+    .controls{
+      margin: 10px 0 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.03);
+      box-shadow: var(--shadow);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .controls .left{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 280px;
+    }
+    .controls .label{
+      font-size:13px;
+      color:var(--muted);
+    }
+    .radioRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .radio{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(10, 14, 20, .45);
+      user-select:none;
+      cursor:pointer;
+    }
+    .radio input{ accent-color: var(--accent); cursor:pointer; }
+    .radio code{
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .note{
+      font-size:12px;
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 520px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+    }
+    @media (max-width: 900px){
+      .grid{ grid-template-columns:1fr; }
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .top{
+      padding:14px 16px 12px;
+      background: linear-gradient(90deg, rgba(106,169,255,.12), rgba(154,123,255,.08));
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .card .top b{ font-size:14px; letter-spacing:.2px; }
+    .tools{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    button{
+      appearance:none;
+      border:1px solid var(--border);
+      background: rgba(15, 23, 35, .75);
+      color: var(--text);
+      border-radius:12px;
+      padding:9px 12px;
+      font-size:13px;
+      cursor:pointer;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease;
+      user-select:none;
+    }
+    button:hover{ background: rgba(17, 24, 38, .95); border-color: rgba(255,255,255,.14); }
+    button:active{ transform: translateY(1px); }
+    button.primary{
+      border-color: rgba(106,169,255,.35);
+      background: linear-gradient(135deg, rgba(106,169,255,.18), rgba(154,123,255,.14));
+    }
+    button.danger{
+      border-color: rgba(255,120,120,.25);
+      background: rgba(255,120,120,.06);
+    }
+    textarea{
+      width:100%;
+      min-height:310px;
+      resize:vertical;
+      border:0;
+      outline:none;
+      background: rgba(10, 14, 20, .55);
+      color: var(--text);
+      padding:14px 16px 16px;
+      font-family: var(--mono);
+      font-size:14px;
+      line-height:1.45;
+    }
+    .bottom{
+      padding:12px 16px;
+      border-top:1px solid var(--border);
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      background: rgba(8, 12, 18, .35);
+    }
+    .hint{
+      color:var(--muted);
+      font-size:12px;
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .kbd{
+      font-family: var(--mono);
+      font-size:12px;
+      padding:2px 7px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+    }
+    .status{
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .status strong{ color: var(--text); font-weight:600; }
+    footer{
+      margin-top:14px;
+      color: var(--muted);
+      font-size:12px;
+      opacity:.95;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>CrossSpeak</h1>
+        <div class="sub">Unicode homoglyph encoder/decoder (ASCII digits preserved; configurable &lt; &gt; encoding).</div>
+      </div>
+      <div class="badge"><span class="dot"></span> 1:1 reversible • digits preserved • local HTML</div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="top">
+          <b>Plain Text</b>
+          <div class="tools">
+            <button id="btnEncode" class="primary" title="Encode → Shadow (Ctrl+E)">Encode →</button>
+            <button id="btnSwap" title="Swap panels (Ctrl+S)">Swap</button>
+            <button id="btnClearPlain" class="danger" title="Clear plain text">Clear</button>
+          </div>
+        </div>
+        <textarea id="plain" spellcheck="false" placeholder="Type your normal text here..."></textarea>
+        <div class="bottom">
+          <div class="hint">
+            <span><span class="kbd">Ctrl</span>+<span class="kbd">E</span> encode</span>
+            <span><span class="kbd">Ctrl</span>+<span class="kbd">D</span> decode</span>
+            <span><span class="kbd">Ctrl</span>+<span class="kbd">S</span> swap</span>
+          </div>
+          <div class="status" id="plainStatus">Chars: <strong>0</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="top">
+          <b>CrossSpeak Text</b>
+          <div class="tools">
+            <button id="btnDecode" class="primary" title="Decode → Plain (Ctrl+D)">← Decode</button>
+            <button id="btnCopyShadow" title="Copy CrossSpeak text">Copy</button>
+            <button id="btnClearShadow" class="danger" title="Clear CrossSpeak text">Clear</button>
+          </div>
+        </div>
+        <textarea id="shadow" spellcheck="false" placeholder="CrossSpeak output appears here..."></textarea>
+        <div class="bottom">
+          <div class="hint">
+            Detection: <span class="kbd" id="detected">none</span>
+            <span>•</span>
+            Digits: <span class="kbd">ASCII preserved</span>
+            <span>•</span>
+            &lt;&gt; mode: <span class="kbd" id="angleModeLabel">untouched</span>
+          </div>
+          <div class="status" id="shadowStatus">Chars: <strong>0</strong></div>
+        </div>
+      </section>
+    </div>
+    
+    <div class="controls">
+      <div class="left">
+        <div class="label"><b>Angle bracket mapping</b> (<span class="kbd">&lt;</span> and <span class="kbd">&gt;</span>)</div>
+        <div class="radioRow" id="angleRadios">
+          <label class="radio" title="Do not encode < or > (default)">
+            <input type="radio" name="angleMode" value="none" checked />
+            Untouched <code>&lt; &gt;</code>
+          </label>
+
+          <label class="radio" title="Option A: mathematical angle brackets">
+            <input type="radio" name="angleMode" value="A" />
+            Option A <code>⟨ ⟩</code>
+          </label>
+
+          <label class="radio" title="Option B: single guillemets">
+            <input type="radio" name="angleMode" value="B" />
+            Option B <code>‹ ›</code>
+          </label>
+
+          <label class="radio" title="Option C: fullwidth less/greater signs">
+            <input type="radio" name="angleMode" value="C" />
+            Option C <code>＜ ＞</code>
+          </label>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>Why this matters:</b> models often treat <span class="kbd">&lt;</span>/<span class="kbd">&gt;</span> as structural tokens (HTML, comparisons, generics).
+        Keeping them untouched is safest for code; Options A–C can be useful for “stealth text” while still staying LLM-readable.
+      </div>
+    </div>
+
+    <footer>
+      <div>Developed by Syhunt in partnership with DaragonTech.</div>
+    </footer>
+  </div>
+
+  <script>
+    // HomoGlitch engine builder (digits 0-9 are intentionally NOT mapped)
+    function buildHomoGlitch(angleMode) {
+      const baseMap = {
+        // lowercase
+        'a':'ɑ','b':'Ƅ','c':'ϲ','d':'ɗ','e':'е','f':'ƒ','g':'ɡ','h':'һ',
+        'i':'ɩ','j':'ʝ','k':'κ','l':'ӏ','m':'ｍ','n':'ո','o':'ο','p':'ρ',
+        'q':'զ','r':'г','s':'ѕ','t':'τ','u':'υ','v':'ν','w':'ԝ','x':'х',
+        'y':'ү','z':'ᴢ',
+
+        // UPPERCASE
+        'A':'Α','B':'Β','C':'Ϲ','D':'Ꭰ','E':'Ε','F':'Ϝ','G':'Ԍ','H':'Η',
+        'I':'Ι','J':'Ј','K':'Κ','L':'Ꮮ','M':'Μ','N':'Ν','O':'Ο','P':'Ρ',
+        'Q':'Ԛ','R':'Я','S':'Ѕ','T':'Τ','U':'Ս','V':'Ѵ','W':'Ԝ','X':'Χ',
+        'Y':'Υ','Z':'Ζ',
+
+        // punctuation (safe to shadow)
+        '.':'․', ',':'،', ':':'：', ';':'؛',
+        '!':'ǃ', '?':'؟', '"':'″', "'":"′",
+        '_':'▁', '(':'❨', ')':'❩',
+        '[':'⟦', ']':'⟧', '{':'❴', '}':'❵',
+        '/':'⁄', '\\':'⧵',
+        '@':'＠', '#':'＃', '&':'＆', '%':'٪'
+      };
+
+      // Apply angle mode mapping
+      if (angleMode === "A") {
+        baseMap['<'] = '⟨';
+        baseMap['>'] = '⟩';
+      } else if (angleMode === "B") {
+        baseMap['<'] = '‹';
+        baseMap['>'] = '›';
+      } else if (angleMode === "C") {
+        baseMap['<'] = '＜';
+        baseMap['>'] = '＞';
+      }
+      // else "none": leave < and > untouched (no mapping)
+
+      const reverseMap = Object.fromEntries(Object.entries(baseMap).map(([k,v]) => [v,k]));
+
+      function encode(text){
+        return [...text].map(ch => baseMap[ch] || ch).join('');
+      }
+      function decode(text){
+        return [...text].map(ch => reverseMap[ch] || ch).join('');
+      }
+      function detect(text){
+        let c = 0;
+        for (const ch of text) if (reverseMap[ch]) c++;
+        return c;
+      }
+
+      return { encode, decode, detect, map: baseMap, reverseMap };
+    }
+
+    // UI wiring
+    const $ = (id) => document.getElementById(id);
+
+    const plain = $("plain");
+    const shadow = $("shadow");
+    const plainStatus = $("plainStatus");
+    const shadowStatus = $("shadowStatus");
+    const detected = $("detected");
+    const angleModeLabel = $("angleModeLabel");
+
+    let angleMode = "none";
+    let HomoGlitch = buildHomoGlitch(angleMode);
+
+    function setAngleMode(mode) {
+      angleMode = mode;
+      HomoGlitch = buildHomoGlitch(angleMode);
+      angleModeLabel.textContent =
+        mode === "A" ? "A (⟨⟩)" :
+        mode === "B" ? "B (‹›)" :
+        mode === "C" ? "C (＜＞)" :
+        "untouched";
+      // Re-encode current plain into shadow to reflect the new mode (non-destructive)
+      shadow.value = HomoGlitch.encode(plain.value);
+      updateCounts();
+    }
+
+    function updateCounts(){
+      plainStatus.innerHTML = `Chars: <strong>${[...plain.value].length}</strong>`;
+      shadowStatus.innerHTML = `Chars: <strong>${[...shadow.value].length}</strong>`;
+      const d = HomoGlitch.detect(shadow.value);
+      detected.textContent = d ? `${d} shadow glyph${d===1?'':'s'}` : "none";
+    }
+
+    function encodeToShadow(){
+      shadow.value = HomoGlitch.encode(plain.value);
+      updateCounts();
+      shadow.focus();
+    }
+
+    function decodeToPlain(){
+      plain.value = HomoGlitch.decode(shadow.value);
+      updateCounts();
+      plain.focus();
+    }
+
+    function swapPanels(){
+      const a = plain.value;
+      plain.value = HomoGlitch.decode(shadow.value);
+      shadow.value = HomoGlitch.encode(a);
+      updateCounts();
+    }
+
+    async function copyShadow(){
+      try{
+        await navigator.clipboard.writeText(shadow.value);
+        flashButton($("btnCopyShadow"), "Copied!");
+      }catch{
+        shadow.select();
+        document.execCommand("copy");
+        shadow.setSelectionRange(shadow.value.length, shadow.value.length);
+        flashButton($("btnCopyShadow"), "Copied!");
+      }
+    }
+
+    function flashButton(btn, text){
+      const old = btn.textContent;
+      btn.textContent = text;
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 700);
+    }
+
+    // Buttons
+    $("btnEncode").addEventListener("click", encodeToShadow);
+    $("btnDecode").addEventListener("click", decodeToPlain);
+    $("btnSwap").addEventListener("click", swapPanels);
+    $("btnCopyShadow").addEventListener("click", copyShadow);
+
+    $("btnClearPlain").addEventListener("click", () => { plain.value=""; shadow.value=""; updateCounts(); plain.focus(); });
+    $("btnClearShadow").addEventListener("click", () => { shadow.value=""; updateCounts(); shadow.focus(); });
+
+    // Live counts
+    plain.addEventListener("input", () => {
+      // Keep shadow in sync while typing (nice UX)
+      shadow.value = HomoGlitch.encode(plain.value);
+      updateCounts();
+    });
+    shadow.addEventListener("input", updateCounts);
+
+    // Keyboard shortcuts
+    window.addEventListener("keydown", (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if(!ctrl) return;
+
+      const k = e.key.toLowerCase();
+      if (k === "e") { e.preventDefault(); encodeToShadow(); }
+      if (k === "d") { e.preventDefault(); decodeToPlain(); }
+      if (k === "s") { e.preventDefault(); swapPanels(); }
+    });
+
+    // Angle mode radios
+    document.querySelectorAll('input[name="angleMode"]').forEach(r => {
+      r.addEventListener("change", (e) => setAngleMode(e.target.value));
+    });
+
+    // Seed example
+    plain.value = "Hello, machine! What is the color of the sky?";
+    setAngleMode("none"); // default: untouched
+  </script>
+</body>
+</html>
